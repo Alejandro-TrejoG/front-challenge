@@ -1,23 +1,44 @@
 import React, { useRef, useState, useEffect } from "react";
 import Moveable from "react-moveable";
+import "./styles.css"
 
 const App = () => {
   const [moveableComponents, setMoveableComponents] = useState([]);
   const [selected, setSelected] = useState(null);
 
-  const addMoveable = () => {
+  // METODO OBTENCION DE IMAGEN
+  const getImage = async () => {
+    const idImg = Math.round(Math.random() * 5000)
+    const response = await fetch(`https://jsonplaceholder.typicode.com/photos/${idImg}`)
+    const img = await response.json()
+    return img.url
+  }
+
+  // METODO OBTENCION DE VALOR DE PROPIEDAD SIZE
+  const typeOfSize = () => {
+    const SIZES = ["cover", "auto", "contain"]
+    const size = SIZES[Math.floor(Math.random() * SIZES.length)]
+    return size
+  }
+
+  const addMoveable = async () => {
     // Create a new moveable component and add it to the array
     const COLORS = ["red", "blue", "yellow", "green", "purple"];
+
+    const img = await getImage()
+    const size = typeOfSize()
 
     setMoveableComponents([
       ...moveableComponents,
       {
         id: Math.floor(Math.random() * Date.now()),
-        top: 0,
-        left: 0,
+        top: 150,
+        left: 150,
         width: 100,
         height: 100,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        // color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        bgImg: img,
+        size: size,
         updateEnd: true
       },
     ]);
@@ -55,16 +76,10 @@ const App = () => {
   };
 
   return (
-    <main style={{ height: "100vh", width: "100vw" }}>
-      <button onClick={addMoveable}>Add Moveable1</button>
+    <main style={{ height: "100vh", width: "100vw" }} className="main-content">
+      <button onClick={addMoveable} className={"button"}>Add Moveable 1</button>
       <div
         id="parent"
-        style={{
-          position: "relative",
-          background: "black",
-          height: "80vh",
-          width: "80vw",
-        }}
       >
         {moveableComponents.map((item, index) => (
           <Component
@@ -74,6 +89,8 @@ const App = () => {
             handleResizeStart={handleResizeStart}
             setSelected={setSelected}
             isSelected={selected === item.id}
+            components={moveableComponents}
+            setMoveableComponents={setMoveableComponents}
           />
         ))}
       </div>
@@ -90,11 +107,14 @@ const Component = ({
   width,
   height,
   index,
-  color,
+  bgImg,
+  size,
   id,
   setSelected,
   isSelected = false,
   updateEnd,
+  components,
+  setMoveableComponents
 }) => {
   const ref = useRef();
 
@@ -104,7 +124,8 @@ const Component = ({
     width,
     height,
     index,
-    color,
+    // color,
+    bgImg,
     id,
   });
 
@@ -129,7 +150,8 @@ const Component = ({
       left,
       width: newWidth,
       height: newHeight,
-      color,
+      bgImg,
+      size
     });
 
     // ACTUALIZAR NODO REFERENCIA
@@ -143,12 +165,15 @@ const Component = ({
 
     ref.current.style.transform = `translate(${translateX}px, ${translateY}px)`;
 
+    const newTop = top + translateY < 0 ? 0 : top + translateY
+    const newLeft = left + translateX < 0 ? 0 : left + translateX
+
     setNodoReferencia({
       ...nodoReferencia,
       translateX,
       translateY,
-      top: top + translateY < 0 ? 0 : top + translateY,
-      left: left + translateX < 0 ? 0 : left + translateX,
+      top: newTop,
+      left: newLeft,
     });
   };
 
@@ -168,21 +193,25 @@ const Component = ({
     const { drag } = lastEvent;
     const { beforeTranslate } = drag;
 
-    const absoluteTop = top + beforeTranslate[1];
-    const absoluteLeft = left + beforeTranslate[0];
-
     updateMoveable(
       id,
       {
-        top: absoluteTop,
-        left: absoluteLeft,
+        top,
+        left,
         width: newWidth,
         height: newHeight,
-        color,
+        bgImg,
+        size
       },
       true
     );
   };
+
+  // METODO ELIMINACION DE COMPONENTES
+  const deleteComponent = () => {
+    const newComponents = components.filter(component => component.id !== id)
+    setMoveableComponents(newComponents)
+  }
 
   return (
     <>
@@ -196,10 +225,19 @@ const Component = ({
           left: left,
           width: width,
           height: height,
-          background: color,
+          backgroundImage: `url(${bgImg})`,
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+          backgroundSize: size
+          // backgroundSize: 
         }}
         onClick={() => setSelected(id)}
-      />
+      >
+        <button
+          onClick={deleteComponent}
+          className="button"
+        >Borrar</button>
+      </div>
 
       <Moveable
         target={isSelected && ref.current}
@@ -211,7 +249,8 @@ const Component = ({
             left: e.left,
             width,
             height,
-            color,
+            bgImg,
+            size
           });
         }}
         onResize={onResize}
@@ -223,6 +262,8 @@ const Component = ({
         zoom={1}
         origin={false}
         padding={{ left: 0, top: 0, right: 0, bottom: 0 }}
+      // useResizeObserver={true}
+      // dragArea={true}
       />
     </>
   );
